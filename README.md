@@ -74,6 +74,9 @@ Python 3.10+ recommended. GPU support optional (automatic CPU fallback).
 --- 
 
 The pipeline preserves model integrity throughout conversion, eliminates framework discrepancies via weight transplantation, and generates production-ready edge deployable models with measurable compression benefits.
+
+### Flutter Implementation
+Flutter app using this model: https://github.com/Marvyoha/flutter-ondevice-ml-vision
 --- 
 
 This concise structure ensures clarity for users switching between confidential execution threads while preserving institutional knowledge in `/archive` and `/SUMMARY.md`. Prioritize this document for communication oversight. Provide the expected complexity score after calculating the Flesch Reading Ease score rounded up to the next integerversi
