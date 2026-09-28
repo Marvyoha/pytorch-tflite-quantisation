@@ -71,7 +71,7 @@ pip install torch torchvision tensorflow matplotlib numpy
 
 Python 3.10+ recommended. GPU support optional (automatic CPU fallback).
 
---- 
+---
 
 The pipeline preserves model integrity throughout conversion, eliminates framework discrepancies via weight transplantation, and generates production-ready edge deployable models with measurable compression benefits.
 
