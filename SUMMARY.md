@@ -1,150 +1,74 @@
 ## Project Overview
-End-to-end pipeline training a custom CNN on CIFAR-10, augmenting/optimizing, validating checkpoints, and exporting to quantized TensorFlow Lite for edge deployment.
+Master pipeline `src/master_pipeline.py` trains a 3-layer Compact CNN on CIFAR-10 with 80/20 train/validation split, early stopping, unified [0,1] preprocessing, comprehensive evaluation, ONNX export, full INT8 TFLite quantization with representative dataset, probabilistic guardrails, and side-by-side benchmarking.
 
-## Architecture (Single Definition)
-
+## Architecture
 ```
-Input: [B, 3, 32, 32] (NCHW)
- ├── Conv2d(3→16, 3×3, pad=1) + ReLU + MaxPool2d(2×2) → [B, 16, 16, 16]
- ├── Conv2d(16→32, 3×3, pad=1) + ReLU + MaxPool2d(2×2) → [B, 32, 8, 8]
- ├── Flatten (channel-first) → [B, 2048]
- ├── Linear(2048→128) + ReLU → [B, 128]
- └── Linear(128→10) → [B, 10] logits
-```
-
-**Keras equivalent** (NHWC with NCHW transpose before Flatten):
-```
-Input: [B, 32, 32, 3] → Conv2D(16) → Pool → Conv2D(32) → Pool
- → Lambda(transpose NHWC→NCHW) → Flatten → Dense(128) → Dense(10)
+Input: [B, 3, 32, 32] NCHW, [0,1] float
+├── Conv2d(3→32,3×3,pad=1)+BN+ReLU+MaxPool2d → [B,32,16,16]
+├── Conv2d(32→64,3×3,pad=1)+BN+ReLU+MaxPool2d → [B,64,8,8]
+├── Conv2d(64→128,3×3,pad=1)+BN+ReLU+MaxPool2d → [B,128,4,4]
+├── Flatten → [B,2048]
+├── Dropout(0.4)
+├── Linear(2048→256)+ReLU
+├── Dropout(0.4)
+└── Linear(256→10) logits
 ```
 
----
+Preprocessing unified across PyTorch, ONNX, TFLite with channel ordering sanity check atol 1e-4.
 
-## Stage 1: Baseline Training (`--stage baseline`)
+## Data Split & Preprocessing
+- CIFAR-10 train True → random_split 40,000 train / 10,000 val
+- CIFAR-10 test False isolated 10,000 images
+- Train augmentations: RandomCrop 32 pad4, RandomHorizontalFlip 0.5, ColorJitter brightness 0.2 contrast 0.2
+- Val/Test: ToTensor only → [0,1] float, no normalization
 
-**Config:** Adam lr=1e-3, 10 epochs, batch=32, no augmentation  
-**Outputs:** `trained_models/cnn_cifar10_baseline.pth`, `graphs/training_plot.png`
+## Training
+- EarlyStopping patience=5, min_delta=0.001, restore_best_weights=True
+- Optimizer Adam lr=1e-3 weight_decay=1e-4
+- Epochs up to 50
+- Checkpoint saved to `models/cifar10.pth`
 
-- Normalization: mean/std = (0.5, 0.5, 0.5) per channel
-- Tracks per-epoch train loss + test accuracy
-- Saves `state_dict` only (lightweight, portable)
+## Evaluation Suite
+- Metrics: Accuracy, Precision, Recall, F1-Score, ROC-AUC via sklearn
+- Plots: `graphs/roc_curve.png`, `graphs/confusion_matrix.png`
 
----
+## Export & Quantization
+- ONNX: `torch.onnx.export` → `models/cnn_model.onnx`
+- TFLite full INT8 PTQ:
+  - Representative dataset generator 150 samples from train subset
+  - optimizations=[Optimize.DEFAULT]
+  - supported_ops=[TFLITE_BUILTINS_INT8]
+  - inference_input_type=int8, inference_output_type=int8
+  - Output: `models/cnn_model_int8.tflite`
 
-## Stage 2: Augmentation & Optimizer Benchmark (`--stage augment`)
+## Probabilistic Guardrails
+- Softmax probabilities, CONFIDENCE_THRESHOLD=0.65
+- max(prob) >= 0.65 → return label + confidence
+- else → "Uncertain / High Entropy"
 
-**Augmentations (training only):**
-- RandomCrop(32, padding=4)
-- RandomHorizontalFlip(p=0.5)
-- ColorJitter(brightness=0.2, contrast=0.2)
+## Benchmarking
+Side-by-side comparison PyTorch .pth, ONNX .onnx, TFLite INT8:
+- Classification metrics
+- Mean inference latency ms per image over 100 warm runs
+- File size MB
+- Logit divergence MAE vs PyTorch
 
-**Experiments:**
-| Optimizer | LR | Momentum | Weight Decay |
-|-----------|----|----------|--------------|
-| Adam      | 1e-3 | — | — |
-| SGD       | 1e-2 | 0.9 | 5e-4 |
-
-**Outputs:** `trained_models/cnn_cifar10_best.pth`, `graphs/augmentation_optimizer_comparison.png`  
-Best model selected by final test accuracy.
-
----
-
-## Stage 3: Debug & Checkpoint Validation (`--stage debug`)
-
-**Checks:**
-1. Shape sanity: single forward pass, verify `[B, 10]` output
-2. Deterministic inference: two full test-set passes, compare accuracy (tolerance 1e-6)
-
-Loads `best.pth` if exists, falls back to `baseline.pth`.
-
----
-
-## Stage 4: TFLite Export & Quantization (`--stage tflite`)
-
-**Weight Transfer:**
-- Conv weights: NCHW `(out, in, h, w)` → NHWC `(h, w, in, out)` via `np.transpose(..., (2,3,1,0))`
-- Dense weights: `.T` (PyTorch `[out, in]` → Keras `[in, out]`)
-- Bias: unchanged
-- **Critical:** `Lambda(tf.transpose(x, [0,3,1,2]))` before Flatten matches PyTorch channel-first flatten order
-
-**Conversion:**
-1. Keras `model.export()` → SavedModel
-2. `TFLiteConverter.from_saved_model()` → float `.tflite`
-3. Same converter + `optimizations=[Optimize.DEFAULT]` → dynamic-range INT8 `.tflite`
-
-**Benchmark Results (actual run):**
-
-| Model | Size | Accuracy |
-|-------|------|----------|
-| PyTorch `.pth` | 1.028 MB | 69.69% |
-| TFLite Float | 1.029 MB | — |
-| TFLite INT8 | **0.264 MB** | **69.69%** |
-
-**Compression: 3.9× | Accuracy delta: 0.00%**
-
-Report saved to `trained_models/benchmark_report.md`.
-
----
-
-## Configuration (`config.py`)
-
-All hyperparameters, paths, and constants in one file. Modify here to change:
-- Device, batch size, epochs, learning rates
-- Augmentation strengths
-- Model widths (conv channels, FC hidden)
-- Output directories
-
----
-
-## CLI Usage
-
-```bash
-# Full pipeline (sequential)
-python pipeline.py --stage all
-
-# Individual stages
-python pipeline.py --stage baseline
-python pipeline.py --stage augment
-python pipeline.py --stage debug
-python pipeline.py --stage tflite
-```
-
----
+Markdown table printed at runtime.
 
 ## File Structure
-
 ```
-pytorch-tflite-quantisation/
-├── config.py              # Hyperparameters & paths
-├── core.py                # Shared: model, data, train, eval, plots
-├── pipeline.py            # CLI entry point
-├── SUMMARY.md             # This file
-├── archive/               # Old day scripts
-│   ├── 1_cifar10_custom_cnn_baseline.py
-│   ├── 2_augmentation_tuning.py
-│   ├── 3_cnn_debug_preview.py
-│   └── 4_pytorch_to_tflite.py
-├── trained_models/        # Checkpoints, TFLite models, reports
-├── graphs/                # Training plots
-└── data/                  # CIFAR-10 (auto-download)
+src/
+  master_config.py
+  master_core.py
+  master_model/
+  master_pipeline.py
+models/
+graphs/
+archive/initial/  # legacy pipeline
 ```
-
----
 
 ## Requirements
+pip install torch torchvision tensorflow onnxruntime scikit-learn matplotlib numpy
 
-```bash
-pip install torch torchvision tensorflow matplotlib numpy
-```
-
-Python 3.10+ recommended. GPU optional (CPU fallback automatic).
-
----
-
-## Archive Contents
-
-Original day-by-day scripts preserved in `archive/` for reference:
-- `1_cifar10_custom_cnn_baseline.py` — baseline training
-- `2_augmentation_tuning.py` — augmentation + Adam vs SGD
-- `3_cnn_debug_preview.py` — checkpoint validation
-- `4_pytorch_to_tflite.py` — TFLite export (working version)
+## Execution
+python src/master_pipeline.py

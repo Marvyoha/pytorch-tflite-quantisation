@@ -10,7 +10,7 @@ import torch.nn.functional as F
 from torch import nn
 from torchvision import datasets, transforms
 
-from config import (
+from archive.config import (
     AUG_BRIGHTNESS,
     AUG_CONTRAST,
     AUG_FLIP_PROB,

@@ -1,51 +1,43 @@
 # PyTorch CNN to TensorFlow Lite Quantization Pipeline
 
-This repository contains a production-ready pipeline that trains a custom CNN on CIFAR-10 and automatically exports a **dynamic range post-training quantized TensorFlow Lite (.tflite) model** optimized for mobile edge deployment.
+This repository contains a production-ready pipeline that trains a 3-layer Compact CNN on CIFAR-10 with unified [0,1] preprocessing, early stopping, comprehensive evaluation, ONNX export and **full INT8 post-training quantization** for mobile edge deployment.
 
 ## Project Overview
-We migrate a research-grade CNN model from PyTorch's desktop-friendly environment to a quantized TFLite format suitable for Android, iOS, and microcontrollers. The pipeline preserves model accuracy while achieving a **3.9× reduction in model size** via weight compression, enabling deployment on devices with strict memory and latency constraints.
+Master pipeline `src/master_pipeline.py` migrates a research-grade CNN from PyTorch to ONNX and quantized TFLite with probabilistic guardrails and side-by-side benchmarking. The pipeline preserves accuracy while achieving strong compression and measurable latency.
 
-## Architecture & Training Setup
-- **Input:** CIFAR-10 RGB images (32×32×3, channel-first)
+## Master Architecture & Training Setup
+- **Input:** CIFAR-10 RGB images 32×32×3, normalized to [0,1] float
+- **Dataset Split:** Train 40,000 / Val 10,000 from train set, Test 10,000 held-out
 - **Model Core:** 
-  - Conv2D(16, 3×3, padding=1) + ReLU + 2×2 MaxPool
-  - Conv2D(32, 3×3, padding=1) + ReLU + 2×2 MaxPool  
-  - Flatten (channel-first ordering preserved via transpose)
-  - Dense(128, ReLU)
-  - Dense(10) logits
+  - Conv2d 3→32 + BatchNorm + ReLU + MaxPool
+  - Conv2d 32→64 + BatchNorm + ReLU + MaxPool
+  - Conv2d 64→128 + BatchNorm + ReLU + MaxPool
+  - Dropout 0.4 → Linear 2048→256 → Dropout 0.4 → Linear 256→10
 - **Loss Function:** Cross-Entropy
-- **Optimizer:** Adam (`lr=1e-3`) or SGD with Momentum (`lr=1e-2, momentum=0.9, weight_decay=5e-4`)
-- **Training Duration:** 10 epochs
+- **Optimizer:** Adam `lr=1e-3` weight_decay 1e-4
+- **Training:** Up to 50 epochs with EarlyStopping patience=5, min_delta=0.001, restore best weights
 
-## Quantization Results
-The pipeline produces three critical artifacts:
+## Master Pipeline Artifacts
+`src/master_pipeline.py` produces:
 
-| Format | Bit-Width | Size (MB) | Compression vs. Baseline | Test Accuracy |
-|--------|------------|--------------|--------------------------|---------------|
-| `cnn_cifar10_baseline.pth` (PyTorch) | 32-bit (FP32) | 1.028 | 1.0× | 69.69% |
-| `cnn_model_float.tflite` (FP32) | 32-bit (FP32) | 1.029 | 1.0× | 69.69% |
-| `cnn_model_int8.tflite` (Quantized) | 8-bit (INT8 weights) | **0.264** | **3.9×** | **69.69%** |
+- `models/cifar10.pth` – best PyTorch checkpoint with early stopping
+- `models/cnn_model.onnx` – ONNX export
+- `models/cnn_model_int8.tflite` – full INT8 quantized TFLite
+- `graphs/roc_curve.png`, `graphs/confusion_matrix.png` – evaluation visuals
 
-The quantized model achieves **identical accuracy** to the original while reducing size by **74%**.
+Evaluation includes Accuracy, Precision, Recall, F1-Score, ROC-AUC and probabilistic guardrails with confidence threshold 0.65.
 
 ---
 
 ## Instructions: Command-Line Execution
 
-The pipeline is controlled via a single CLI command with `--stage` parameter:
+Run the full master pipeline:
 
 ```bash
-# Run the entire pipeline sequentially
-python pipeline.py --stage all
-
-# Execute specific stages independently:
-python pipeline.py --stage baseline     # Train initial PyTorch model
-python pipeline.py --stage augment      # Augmentation + optimizer benchmark
-python pipeline.py --stage debug        # Checkpoint validation
-python pipeline.py --stage tflite       # Export to TFLite + quantization
+python src/master_pipeline.py
 ```
 
-Each stage logs progress and generates artifacts in the `trained_models/` directory.
+Artifacts are written to `models/` and `graphs/`. The legacy pipeline files have been archived under `archive/initial/`.
 
 ---
 
@@ -53,13 +45,16 @@ Each stage logs progress and generates artifacts in the `trained_models/` direct
 
 ```
 pytorch-tflite-quantisation/
-├── config.py               # All hyperparameters & file paths
-├── core.py                 # Model, data loaders, training & evaluation logic
-├── pipeline.py             # CLI entry point and stage orchestration
-├── SUMMARY.md              # Stage-specific technical documentation
-├── archive/                # Legacy monolithic implementations
-├── trained_models/         # Generated checkpoints & TFLite models
-├── graphs/                 # Training visualization outputs
+├── src/
+│   ├── master_config.py
+│   ├── master_core.py
+│   ├── master_model/
+│   └── master_pipeline.py
+├── models/                 # Checkpoints, ONNX, TFLite
+├── graphs/                 # ROC, Confusion Matrix
+├── SUMMARY.md
+├── archive/
+│   └── initial/            # Legacy pipeline files & trained_models
 └── data/                   # Auto-downloaded CIFAR-10 dataset
 ```
 

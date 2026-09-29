@@ -11,7 +11,7 @@ import os
 import numpy as np
 import torch
 
-from config import (
+from archive.config import (
     ADAM_LR,
     BASELINE_CKPT,
     BENCHMARK_REPORT,
@@ -28,7 +28,7 @@ from config import (
     TFLITE_FLOAT,
     TFLITE_INT8,
 )
-from core import (
+from archive.core import (
     CustomCNN,
     evaluate,
     get_dataloaders,
@@ -110,6 +110,7 @@ def stage_debug():
 def stage_tflite():
     print("=== Stage 4: TFLite Export & Quantization ===")
     import tensorflow as tf
+
     layers = tf.keras.layers
     models = tf.keras.models
 
