@@ -3,7 +3,7 @@ import torch
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
-DATA_ROOT = "./data"
+DATA_ROOT = "/content/data" if os.getenv("COLAB_GPU") else "./data"
 BATCH_SIZE = 128
 NUM_WORKERS = 0
 
