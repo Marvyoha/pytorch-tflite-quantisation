@@ -161,12 +161,15 @@ def verify_preprocessing_alignment():
     )
 
 
-def get_cifar10_datasets():
+def get_cifar10_datasets(download=None):
     os.makedirs(DATA_ROOT, exist_ok=True)
+    data_dir = os.path.join(DATA_ROOT, "cifar-10-batches-py")
+    if download is None:
+        download = not os.path.isdir(data_dir)
     full_train = datasets.CIFAR10(
         DATA_ROOT,
         train=True,
-        download=True,
+        download=download,
         transform=StandardPreprocessing.torch_transform(train=True),
     )
     generator = torch.Generator().manual_seed(42)
@@ -177,7 +180,7 @@ def get_cifar10_datasets():
     val_dataset = datasets.CIFAR10(
         DATA_ROOT,
         train=True,
-        download=True,
+        download=download,
         transform=StandardPreprocessing.torch_transform(train=False),
     )
     val_subset.dataset = val_dataset
@@ -185,7 +188,7 @@ def get_cifar10_datasets():
     test_dataset = datasets.CIFAR10(
         DATA_ROOT,
         train=False,
-        download=True,
+        download=download,
         transform=StandardPreprocessing.torch_transform(train=False),
     )
 
