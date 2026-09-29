@@ -177,7 +177,7 @@ def get_cifar10_datasets():
     val_dataset = datasets.CIFAR10(
         DATA_ROOT,
         train=True,
-        download=False,
+        download=True,
         transform=StandardPreprocessing.torch_transform(train=False),
     )
     val_subset.dataset = val_dataset
@@ -185,7 +185,7 @@ def get_cifar10_datasets():
     test_dataset = datasets.CIFAR10(
         DATA_ROOT,
         train=False,
-        download=False,
+        download=True,
         transform=StandardPreprocessing.torch_transform(train=False),
     )
 
