@@ -1,3 +1,4 @@
+import os
 import torch
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
@@ -11,7 +12,7 @@ AUG_FLIP_PROB = 0.5
 AUG_BRIGHTNESS = 0.2
 AUG_CONTRAST = 0.2
 
-EPOCHS = 50
+EPOCHS = int(os.getenv("COLAB_EPOCHS", 50))
 
 CONV1_OUT = 32
 CONV2_OUT = 64
