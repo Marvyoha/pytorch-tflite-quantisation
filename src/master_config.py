@@ -4,15 +4,23 @@ import torch
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 DATA_ROOT = "/content/data" if os.getenv("COLAB_GPU") else "./data"
-BATCH_SIZE = 128
+BATCH_SIZE = 64
 NUM_WORKERS = 0
 
 AUG_PADDING = 4
 AUG_FLIP_PROB = 0.5
-AUG_BRIGHTNESS = 0.2
-AUG_CONTRAST = 0.2
+AUG_BRIGHTNESS = 0.3
+AUG_CONTRAST = 0.3
+AUG_SATURATION = 0.3
+AUG_GRAYSCALE_PROB = 0.2
+AUG_RESIZED_CROP_SCALE = (0.8, 1.0)
 
-EPOCHS = int(os.getenv("COLAB_EPOCHS", 50))
+LR_SCHEDULER_T0 = 10
+LR_SCHEDULER_TMULT = 2
+MIXUP_ALPHA = 0.2
+CUTMIX_ALPHA = 1.0
+
+EPOCHS = int(os.getenv("COLAB_EPOCHS", 100))
 
 CONV1_OUT = 32
 CONV2_OUT = 64

@@ -22,7 +22,10 @@ from src.master_config import (
     AUG_BRIGHTNESS,
     AUG_CONTRAST,
     AUG_FLIP_PROB,
+    AUG_GRAYSCALE_PROB,
     AUG_PADDING,
+    AUG_RESIZED_CROP_SCALE,
+    AUG_SATURATION,
     BATCH_SIZE,
     CKPT_PATH,
     CM_PATH,
@@ -36,6 +39,8 @@ from src.master_config import (
     EPOCHS,
     FC_HIDDEN,
     GRAPHS_DIR,
+    LR_SCHEDULER_T0,
+    LR_SCHEDULER_TMULT,
     MODEL_DIR,
     NUM_CLASSES,
     NUM_WORKERS,
@@ -134,11 +139,15 @@ class StandardPreprocessing:
         if train:
             return transforms.Compose(
                 [
+                    transforms.RandomResizedCrop(32, scale=AUG_RESIZED_CROP_SCALE),
                     transforms.RandomCrop(32, padding=AUG_PADDING),
                     transforms.RandomHorizontalFlip(AUG_FLIP_PROB),
                     transforms.ColorJitter(
-                        brightness=AUG_BRIGHTNESS, contrast=AUG_CONTRAST
+                        brightness=AUG_BRIGHTNESS,
+                        contrast=AUG_CONTRAST,
+                        saturation=AUG_SATURATION,
                     ),
+                    transforms.RandomGrayscale(p=AUG_GRAYSCALE_PROB),
                     transforms.ToTensor(),
                 ]
             )
@@ -222,6 +231,9 @@ def train_model(model, train_loader, val_loader, epochs=EPOCHS):
     model.to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-4)
     criterion = nn.CrossEntropyLoss()
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
+        optimizer, T_0=LR_SCHEDULER_T0, T_mult=LR_SCHEDULER_TMULT
+    )
     early_stopping = EarlyStopping(
         patience=5, min_delta=0.001, restore_best_weights=True
     )
@@ -238,6 +250,7 @@ def train_model(model, train_loader, val_loader, epochs=EPOCHS):
             optimizer.step()
             running_loss += loss.item() * inputs.size(0)
 
+        scheduler.step()
         train_loss = running_loss / len(train_loader.dataset)
 
         model.eval()
@@ -255,7 +268,7 @@ def train_model(model, train_loader, val_loader, epochs=EPOCHS):
         val_acc = 100.0 * val_correct / len(val_loader.dataset)
 
         print(
-            f"Epoch {epoch:02d} | Train Loss: {train_loss:.4f} | Val Loss: {val_loss:.4f} | Val Acc: {val_acc:.2f}%"
+            f"Epoch {epoch:02d} | LR: {optimizer.param_groups[0]['lr']:.6f} | Train Loss: {train_loss:.4f} | Val Loss: {val_loss:.4f} | Val Acc: {val_acc:.2f}%"
         )
 
         early_stopping(val_loss, model)

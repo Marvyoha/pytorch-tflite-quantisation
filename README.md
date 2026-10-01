@@ -13,9 +13,9 @@ Master pipeline `src/master_pipeline.py` migrates a research-grade CNN from PyTo
   - Conv2d 32→64 + BatchNorm + ReLU + MaxPool
   - Conv2d 64→128 + BatchNorm + ReLU + MaxPool
   - Dropout 0.4 → Linear 2048→256 → Dropout 0.4 → Linear 256→10
-- **Loss Function:** Cross-Entropy
-- **Optimizer:** Adam `lr=1e-3` weight_decay 1e-4
-- **Training:** Up to 50 epochs with EarlyStopping patience=5, min_delta=0.001, restore best weights
+  - **Loss Function:** Cross-Entropy
+  - **Optimizer:** Adam `lr=1e-3` weight_decay 1e-4 with CosineAnnealingWarmRestarts scheduler
+  - **Training:** Up to 100 epochs with EarlyStopping patience=5, min_delta=0.001, restore best weights; stronger augmentation with RandomResizedCrop, ColorJitter, RandomGrayscale
 
 ## Master Pipeline Artifacts
 `src/master_pipeline.py` produces:
@@ -73,5 +73,3 @@ The pipeline preserves model integrity throughout conversion, eliminates framewo
 ### Flutter Implementation
 Flutter app using this model: https://github.com/Marvyoha/flutter-ondevice-ml-vision
 --- 
-
-This concise structure ensures clarity for users switching between confidential execution threads while preserving institutional knowledge in `/archive` and `/SUMMARY.md`. Prioritize this document for communication oversight. Provide the expected complexity score after calculating the Flesch Reading Ease score rounded up to the next integerversi
