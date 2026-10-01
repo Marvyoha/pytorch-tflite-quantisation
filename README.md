@@ -14,8 +14,8 @@ Master pipeline `src/master_pipeline.py` migrates a research-grade CNN from PyTo
   - Conv2d 64→128 + BatchNorm + ReLU + MaxPool
   - Dropout 0.4 → Linear 2048→256 → Dropout 0.4 → Linear 256→10
   - **Loss Function:** Cross-Entropy
-  - **Optimizer:** Adam `lr=1e-3` weight_decay 1e-4 with CosineAnnealingWarmRestarts scheduler
-  - **Training:** Up to 100 epochs with EarlyStopping patience=5, min_delta=0.001, restore best weights; stronger augmentation with RandomResizedCrop, ColorJitter, RandomGrayscale
+  - **Optimizer:** Adam `lr=1e-3` weight_decay 1e-4 with CosineAnnealingWarmRestarts T0=30 T_mult=1 scheduler
+  - **Training:** Up to 100 epochs with EarlyStopping patience=5, min_delta=0.0005, restore best weights, minimum epoch floor 30; conservative augmentation RandomResizedCrop 0.9-1.0, ColorJitter 0.2, RandomGrayscale 0.1
 
 ## Master Pipeline Artifacts
 `src/master_pipeline.py` produces:

@@ -235,7 +235,7 @@ def train_model(model, train_loader, val_loader, epochs=EPOCHS):
         optimizer, T_0=LR_SCHEDULER_T0, T_mult=LR_SCHEDULER_TMULT
     )
     early_stopping = EarlyStopping(
-        patience=5, min_delta=0.001, restore_best_weights=True
+        patience=5, min_delta=0.0005, restore_best_weights=True
     )
 
     for epoch in range(1, epochs + 1):
@@ -272,7 +272,7 @@ def train_model(model, train_loader, val_loader, epochs=EPOCHS):
         )
 
         early_stopping(val_loss, model)
-        if early_stopping.early_stop:
+        if early_stopping.early_stop and epoch >= 30:
             print(f"Early stopping triggered at epoch {epoch}")
             break
 

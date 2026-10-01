@@ -19,14 +19,14 @@ Preprocessing unified across PyTorch, ONNX, TFLite with channel ordering sanity 
 ## Data Split & Preprocessing
 - CIFAR-10 train True → random_split 40,000 train / 10,000 val
 - CIFAR-10 test False isolated 10,000 images
-- Train augmentations: RandomResizedCrop(32, scale 0.8-1.0), RandomCrop 32 pad4, RandomHorizontalFlip 0.5, ColorJitter brightness 0.3 contrast 0.3 saturation 0.3, RandomGrayscale(p=0.2)
+- Train augmentations: RandomResizedCrop(32, scale 0.9-1.0), RandomCrop 32 pad4, RandomHorizontalFlip 0.5, ColorJitter brightness 0.2 contrast 0.2 saturation 0.2, RandomGrayscale(p=0.1)
 - Val/Test: ToTensor only → [0,1] float, no normalization
 
 ## Training
 - EarlyStopping patience=5, min_delta=0.001, restore_best_weights=True
-- Optimizer Adam lr=1e-3 weight_decay=1e-4 with CosineAnnealingWarmRestarts T0=10 Tmult=2
-- Epochs up to 100 (default), configurable via COLAB_EPOCHS
-- Augmentations: RandomResizedCrop(scale 0.8-1.0), RandomCrop pad 4, HorizontalFlip, ColorJitter(0.3,0.3,0.3), RandomGrayscale(p=0.2)
+- Optimizer Adam lr=1e-3 weight_decay=1e-4 with CosineAnnealingWarmRestarts T0=30 Tmult=1
+- Epochs up to 100 (default), configurable via COLAB_EPOCHS, early stopping patience=5 min_delta=0.0005 with minimum epoch floor 30
+- Augmentations: RandomResizedCrop(scale 0.9-1.0), RandomCrop pad 4, HorizontalFlip, ColorJitter(0.2,0.2,0.2), RandomGrayscale(p=0.1)
 - Batch size 64
 - Checkpoint saved to `models/cifar10.pth`
 
